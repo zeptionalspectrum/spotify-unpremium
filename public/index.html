@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Party</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body style="justify-content: center;">
+
+    <div class="card" style="width: 100%; max-width: 400px; text-align: center;">
+        <h1>🎵 Spotify <span>Party</span></h1>
+        <p style="color: var(--text-muted)">Listen together, chat together.</p>
+
+        <div style="margin: 20px 0;">
+            <button id="btn-login" class="secondary" onclick="show('login')">Login</button>
+            <button id="btn-register" class="secondary" onclick="show('register')">Register</button>
+        </div>
+
+        <form id="login" action="/api/login" method="POST">
+            <input type="text" name="username" placeholder="Username" required>
+            <input type="password" name="password" placeholder="Password" required>
+            <button type="submit" style="width: 100%; margin-top: 10px;">Log In</button>
+        </form>
+
+        <form id="register" action="/api/register" method="POST" style="display: none;">
+            <input type="text" name="username" placeholder="Pick a Username" required>
+            <input type="password" name="password" placeholder="Choose a Password" required>
+            <button type="submit" style="width: 100%; margin-top: 10px;">Sign Up</button>
+        </form>
+    </div>
+
+    <script>
+        function show(id) {
+            document.getElementById('login').style.display = id === 'login' ? 'block' : 'none';
+            document.getElementById('register').style.display = id === 'register' ? 'block' : 'none';
+            
+            // Visual toggle state
+            document.getElementById('btn-login').style.background = id === 'login' ? 'var(--primary)' : 'rgba(255,255,255,0.1)';
+            document.getElementById('btn-register').style.background = id === 'register' ? 'var(--primary)' : 'rgba(255,255,255,0.1)';
+            document.getElementById('btn-login').style.color = id === 'login' ? 'black' : 'white';
+            document.getElementById('btn-register').style.color = id === 'register' ? 'black' : 'white';
+        }
+        show('login'); // Init
+    </script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Party Room</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h1 id="lobbyName">Loading...</h1>
+            <a href="/dashboard.html"><button class="secondary sm">Exit Party</button></a>
+        </div>
+
+        <div class="grid grid-3">
+            
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                
+                <div class="card" style="padding: 0; overflow: hidden; position: relative; padding-bottom: 56.25%;">
+                    <div id="playerPlaceholder" style="position: absolute; top:0; left:0; width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#000;">
+                        <span style="color: #555;">Waiting for music...</span>
+                    </div>
+                    <iframe id="ytPlayer" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display:none;" 
+                        src="" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+                </div>
+
+                <div class="card">
+                    <div style="display: flex; gap: 10px;">
+                        <input id="songInput" type="text" placeholder="Paste YouTube Link here...">
+                        <button onclick="sendAction('addSong', document.getElementById('songInput').value); document.getElementById('songInput').value=''">Add</button>
+                    </div>
+                    
+                    <div id="hostControls" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); display: none;">
+                        <small style="color: var(--primary); font-weight: bold; text-transform: uppercase;">Host Controls</small>
+                        <br><br>
+                        <button class="secondary sm" onclick="sendAction('nextSong', null)">Skip Song</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>🎵 Up Next</h3>
+                    <ul id="musicQueue" class="music-queue" style="list-style: none; padding: 0; margin: 0;"></ul>
+                </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                
+                <div class="card">
+                    <h3>👥 Users</h3>
+                    <div id="userList"></div>
+                    <button id="readyBtn" class="sm secondary" style="width:100%; margin-top:10px;" onclick="sendAction('toggleReady', null)">Toggle Ready</button>
+                </div>
+
+                <div class="card" style="flex-grow: 1; display: flex; flex-direction: column;">
+                    <h3>💬 Chat</h3>
+                    <div id="chatBox" class="chat-box"></div>
+                    <div style="display: flex; gap: 5px; margin-top: 10px;">
+                        <input id="chatInput" type="text" placeholder="Message..." onkeypress="if(event.key==='Enter') sendChat()">
+                        <button class="sm" onclick="sendChat()">Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // This tells Socket.IO to use the current window's path automatically, 
+        // which handles the ngrok URL correctly.
+        const socket = io({
+        transports: ['websocket', 'polling'] 
+        });
+        const lobbyId = new URLSearchParams(window.location.search).get("id");
+        let currentUser = null;
+        let currentVideoId = null;
+
+        // 1. Get User Identity
+        fetch('/api/me').then(r => r.json()).then(data => {
+            if(!data.user) window.location = '/';
+            currentUser = data.user;
+            socket.emit("joinLobby", { lobbyId, username: currentUser });
+        });
+
+        // 2. Helper to send actions
+        function sendAction(type, payload) {
+            socket.emit("action", { lobbyId, username: currentUser, type, payload });
+        }
+        
+        function sendChat() {
+            const input = document.getElementById("chatInput");
+            if(input.value.trim()) {
+                sendAction('chat', input.value);
+                input.value = '';
+            }
+        }
+
+        // 3. Handle Updates
+        socket.on("stateUpdate", state => {
+            // Header
+            document.getElementById("lobbyName").innerHTML = `${state.name} <span style="font-size:0.5em; color:#666; vertical-align:middle;">${state.private ? '🔒 Private' : '🌍 Public'}</span>`;
+
+            // Host Controls Visibility
+            const isHost = state.host === currentUser;
+            document.getElementById("hostControls").style.display = isHost ? "block" : "none";
+
+            // User List
+            const userList = document.getElementById("userList");
+            userList.innerHTML = '';
+            state.users.forEach(u => {
+                const div = document.createElement("div");
+                div.className = "player-item";
+                div.innerHTML = `
+                    <span>${u === state.host ? '👑' : ''} ${u}</span>
+                    <span>${state.ready[u] ? '✅' : '⏳'}</span>
+                `;
+                // Add Kick button if host and target is not self
+                if(isHost && u !== currentUser) {
+                    const kickBtn = document.createElement("button");
+                    kickBtn.innerText = "×";
+                    kickBtn.className = "danger sm";
+                    kickBtn.style.padding = "2px 6px";
+                    kickBtn.style.marginLeft = "10px";
+                    kickBtn.onclick = () => sendAction('kick', u);
+                    div.appendChild(kickBtn);
+                }
+                userList.appendChild(div);
+            });
+
+            // Chat
+            const chatBox = document.getElementById("chatBox");
+            chatBox.innerHTML = '';
+            state.chat.forEach(msg => {
+                const div = document.createElement("div");
+                div.className = "msg";
+                div.innerHTML = `<b>${msg.user}:</b> ${msg.text}`;
+                chatBox.appendChild(div);
+            });
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // Music Player Logic
+            const player = document.getElementById("ytPlayer");
+            const placeholder = document.getElementById("playerPlaceholder");
+            
+            if (state.music.current) {
+                // Only update src if the video ID actually changed to prevent reloading
+                if (currentVideoId !== state.music.current.id) {
+                    currentVideoId = state.music.current.id;
+                    player.src = `https://www.youtube.com/embed/${state.music.current.id}?autoplay=1&controls=0`;
+                    player.style.display = "block";
+                    placeholder.style.display = "none";
+                }
+            } else {
+                currentVideoId = null;
+                player.style.display = "none";
+                placeholder.style.display = "flex";
+                player.src = "";
+            }
+
+            // Music Queue
+            const queue = document.getElementById("musicQueue");
+            queue.innerHTML = '';
+            if(state.music.queue.length === 0) queue.innerHTML = '<li style="color:#666; font-style:italic;">Queue is empty</li>';
+            state.music.queue.forEach(track => {
+                const li = document.createElement("li");
+                li.innerHTML = `<span>${track.title}</span> <small style="color:#666">${track.addedBy}</small>`;
+                queue.appendChild(li);
+            });
+        });
+
+        socket.on("error", msg => { alert(msg); window.location = '/dashboard.html'; });
+
+    </script>
+</body>
+</html>

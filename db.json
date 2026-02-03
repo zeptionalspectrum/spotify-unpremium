@@ -1,0 +1,31 @@
+{
+  "users": {
+    "zeptional": {
+      "password": "$2b$10$DQluFZDk7yc9MCkUOfD32euBMcI.ehYDl5nUown73PBYOUg35XgXS",
+      "pfp": ""
+    }
+  },
+  "lobbies": {
+    "08106268-ab73-494a-a8ae-575c4242fab0": {
+      "id": "08106268-ab73-494a-a8ae-575c4242fab0",
+      "name": "ggs",
+      "host": "zeptional",
+      "users": [
+        "zeptional"
+      ],
+      "ready": {
+        "zeptional": true
+      },
+      "private": false,
+      "chat": [],
+      "music": {
+        "queue": [],
+        "current": {
+          "url": "https://www.youtube.com/watch?v=ZmXIg4m3C2k",
+          "addedBy": "zeptional"
+        }
+      }
+    }
+  },
+  "friends": {}
+}
